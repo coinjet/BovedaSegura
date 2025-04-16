@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureVault - Tu bóveda digital segura</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        /* Custom styles for transitions and animations */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+        .fade-enter, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        .slide-up-enter-active, .slide-up-leave-active {
+            transition: all 0.3s ease;
+        }
+        .slide-up-enter, .slide-up-leave-to {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Password strength indicator */
+        .password-strength {
+            height: 4px;
+            transition: all 0.3s;
+        }
+        
+        /* Custom checkbox */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a5568;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .custom-checkbox:checked {
+            background-color: #4299e1;
+            border-color: #4299e1;
+        }
+        
+        .custom-checkbox:checked::after {
+            content: "✓";
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+    <!-- App Container -->
+    <div id="app" class="flex flex-col min-h-screen">
+        <!-- Auth Views -->
+        <div id="auth-views" class="flex-grow flex items-center justify-center p-4">
+            <!-- Register View -->
+            <div id="register-view" class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md transition-all duration-300">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">Crear cuenta</h1>
+                    <p class="text-gray-600 mt-2">Protege tus datos con seguridad de nivel militar</p>
+                </div>
+                
+                <form id="register-form" class="space-y-6">
+                    <div>
+                        <label for="register-email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                        <input type="email" id="register-email" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input type="password" id="register-password" required minlength="10" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="mt-1">
+                            <div class="password-strength bg-gray-200 rounded-full w-full" id="password-strength"></div>
+                            <p class="text-xs text-gray-500 mt-1">La contraseña debe tener al menos 10 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="register-confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+                        <input type="password" id="register-confirm-password" required minlength="10" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="enable-mfa" class="custom-checkbox">
+                        <label for="enable-mfa" class="ml-2 text-sm text-gray-700 cursor-pointer">Habilitar autenticación de dos factores (MFA)</label>
+                    </div>
+                    
+                    <div id="mfa-section" class="hidden space-y-4">
+                        <div class="text-sm text-gray-600">
+                            <p>Escanea este código QR con tu aplicación de autenticación:</p>
+                            <div id="mfa-qr-code" class="bg-white p-2 border border-gray-300 rounded-md inline-block mt-2">
+                                <!-- QR code will be generated here -->
+                            </div>
+                        </div>
+                        <div>
+                            <label for="mfa-code" class="block text-sm font-medium text-gray-700 mb-1">Código de verificación</label>
+                            <input type="text" id="mfa-code" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el código de 6 dígitos">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        Crear cuenta
+                    </button>
+                    
+                    <div class="text-center text-sm text-gray-600">
+                        ¿Ya tienes una cuenta? <a href="#" id="show-login" class="text-blue-600 hover:underline">Iniciar sesión</a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Login View (hidden by default) -->
+            <div id="login-view" class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md hidden transition-all duration-300">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">Iniciar sesión</h1>
+                    <p class="text-gray-600 mt-2">Accede a tu bóveda segura</p>
+                </div>
+                
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                        <input type="email" id="login-email" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input type="password" id="login-password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div id="mfa-login-section" class="hidden">
+                        <label for="login-mfa-code" class="block text-sm font-medium text-gray-700 mb-1">Código de autenticación</label>
+                        <input type="text" id="login-mfa-code" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa el código de 6 dígitos">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        Iniciar sesión
+                    </button>
+                    
+                    <div class="text-center text-sm text-gray-600">
+                        ¿No tienes una cuenta? <a href="#" id="show-register" class="text-blue-600 hover:underline">Regístrate</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Main App View (hidden by default) -->
+        <div id="app-view" class="hidden flex-grow flex flex-col">
+            <!-- Header -->
+            <header class="bg-white shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">SV</div>
+                        <h1 class="ml-3 text-xl font-semibold text-gray-900">SecureVault</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="logout-btn" class="text-gray-600 hover:text-gray-900">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Main Content -->
+            <main class="flex-grow bg-gray-50">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <!-- Sidebar -->
+                        <div class="w-full md:w-64 flex-shrink-0">
+                            <div class="bg-white rounded-lg shadow p-4">
+                                <div class="mb-6">
+                                    <h2 class="text-lg font-semibold text-gray-800 mb-2">Categorías</h2>
+                                    <ul class="space-y-2">
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="all">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                                </svg>
+                                                Todos los items
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="email">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                Correos electrónicos
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="wallet">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Billeteras
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="platform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                Plataformas
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="card">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                </svg>
+                                                Tarjetas
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="note">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                Notas
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="category-btn w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center" data-category="photo">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                Fotos
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-800 mb-2">Acciones</h2>
+                                    <ul class="space-y-2">
+                                        <li>
+                                            <button id="add-item-btn" class="w-full text-left px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                                Agregar item
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button id="generate-password-btn" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                                Generar contraseña
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button id="backup-btn" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                                                </svg>
+                                                Respaldar datos
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button id="restore-btn" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 transition-colors flex items-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                Restaurar datos
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Content Area -->
+                        <div class="flex-grow">
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h2 class="text-xl font-semibold text-gray-800">Todos tus items</h2>
+                                    <div class="relative w-64">
+                                        <input type="text" id="search-input" placeholder="Buscar..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                
+                                <!-- Items Grid -->
+                                <div id="items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <!-- Items will be dynamically added here -->
+                                </div>
+                                
+                                <!-- Empty State -->
+                                <div id="empty-state" class="text-center py-12">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <h3 class="mt-4 text-lg font-medium text-gray-900">No hay items guardados</h3>
+                                    <p class="mt-1 text-sm text-gray-500">Comienza agregando tu primer item seguro.</p>
+                                    <button id="add-first-item-btn" class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        Agregar item
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Modals -->
+        
+        <!-- Add Item Modal -->
+        <div id="add-item-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">Agregar nuevo item</h3>
+                        <button id="close-add-item-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <form id="add-item-form" class="space-y-4">
+                        <div>
+                            <label for="item-type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de item</label>
+                            <select id="item-type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="email">Correo electrónico</option>
+                                <option value="wallet">Billetera virtual</option>
+                                <option value="platform">Plataforma</option>
+                                <option value="card">Tarjeta de crédito/débito</option>
+                                <option value="note">Nota segura</option>
+                                <option value="photo">Foto con nota</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="item-name" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                            <input type="text" id="item-name" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Banco X, Wallet Y, etc.">
+                        </div>
+                        
+                        <div>
+                            <label for="item-category" class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                            <input type="text" id="item-category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Banco, Wallet, Plataforma, etc.">
+                        </div>
+                        
+                        <!-- Dynamic fields based on item type -->
+                        <div id="email-fields" class="space-y-4">
+                            <div>
+                                <label for="email-username" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                                <input type="email" id="email-username" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="email-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                <div class="relative">
+                                    <input type="password" id="email-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" class="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 toggle-password" data-target="email-password">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="wallet-fields" class="space-y-4 hidden">
+                            <div>
+                                <label for="wallet-username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                                <input type="text" id="wallet-username" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="wallet-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                <div class="relative">
+                                    <input type="password" id="wallet-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" class="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 toggle-password" data-target="wallet-password">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="wallet-seed" class="block text-sm font-medium text-gray-700 mb-1">Frase semilla</label>
+                                <textarea id="wallet-seed" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                            <div>
+                                <label for="wallet-private-key" class="block text-sm font-medium text-gray-700 mb-1">Clave privada</label>
+                                <textarea id="wallet-private-key" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div id="platform-fields" class="space-y-4 hidden">
+                            <div>
+                                <label for="platform-username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                                <input type="text" id="platform-username" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="platform-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                <div class="relative">
+                                    <input type="password" id="platform-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" class="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 toggle-password" data-target="platform-password">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="card-fields" class="space-y-4 hidden">
+                            <div>
+                                <label for="card-number" class="block text-sm font-medium text-gray-700 mb-1">Número de tarjeta</label>
+                                <input type="text" id="card-number" maxlength="19" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1234 5678 9012 3456">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="card-expiry" class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
+                                    <input type="text" id="card-expiry" maxlength="5" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="MM/AA">
+                                </div>
+                                <div>
+                                    <label for="card-cvv" class="block text-sm font-medium text-gray-700 mb-1">CVV</label>
+                                    <input type="password" id="card-cvv" maxlength="4" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label for="card-holder" class="block text-sm font-medium text-gray-700 mb-1">Titular de la tarjeta</label>
+                                <input type="text" id="card-holder" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div id="note-fields" class="space-y-4 hidden">
+                            <div>
+                                <label for="note-content" class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
+                                <textarea id="note-content" rows="6" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div id="photo-fields" class="space-y-4 hidden">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Foto</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="photo-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                                <span>Subir una foto</span>
+                                                <input id="photo-upload" name="photo-upload" type="file" class="sr-only" accept="image/*">
+                                            </label>
+                                            <p class="pl-1">o arrastrar y soltar</p>
+                                        </div>
+                                        <p class="text-xs text-gray-500">PNG, JPG, GIF hasta 10MB</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="photo-note" class="block text-sm font-medium text-gray-700 mb-1">Nota sobre la foto</label>
+                                <textarea id="photo-note" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" id="cancel-add-item" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Guardar item
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- View Item Modal -->
+        <div id="view-item-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800" id="view-item-title">Detalles del item</h3>
+                        <div class="flex space-x-2">
+                            <button id="edit-item-btn" class="text-blue-600 hover:text-blue-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button id="delete-item-btn" class="text-red-600 hover:text-red-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                            <button id="close-view-item-modal" class="text-gray-500 hover:text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="view-item-content" class="space-y-4">
+                        <!-- Content will be dynamically added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Generate Password Modal -->
+        <div id="generate-password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">Generador de contraseñas</h3>
+                        <button id="close-generate-password-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="password-length" class="block text-sm font-medium text-gray-700 mb-1">Longitud</label>
+                            <input type="range" id="password-length" min="8" max="32" value="16" class="w-full">
+                            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>8</span>
+                                <span id="password-length-value">16</span>
+                                <span>32</span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-uppercase" checked class="custom-checkbox">
+                                <label for="include-uppercase" class="ml-2 text-sm text-gray-700">Incluir mayúsculas (A-Z)</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-lowercase" checked class="custom-checkbox">
+                                <label for="include-lowercase" class="ml-2 text-sm text-gray-700">Incluir minúsculas (a-z)</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-numbers" checked class="custom-checkbox">
+                                <label for="include-numbers" class="ml-2 text-sm text-gray-700">Incluir números (0-9)</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-symbols" checked class="custom-checkbox">
+                                <label for="include-symbols" class="ml-2 text-sm text-gray-700">Incluir símbolos (!@#$%^&*)</label>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <label for="generated-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña generada</label>
+                            <div class="flex">
+                                <input type="text" id="generated-password" readonly class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button id="copy-password" class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Copiar
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button id="generate-new-password" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Generar otra
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Backup Modal -->
+        <div id="backup-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">Respaldar datos</h3>
+                        <button id="close-backup-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <p class="text-gray-600">Se creará un archivo encriptado con todos tus datos. Guarda este archivo en un lugar seguro.</p>
+                        
+                        <div>
+                            <label for="backup-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña de respaldo</label>
+                            <input type="password" id="backup-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Crea una contraseña segura para el respaldo">
+                        </div>
+                        
+                        <div>
+                            <label for="confirm-backup-password" class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+                            <input type="password" id="confirm-backup-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Repite la contraseña">
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" id="cancel-backup" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Cancelar
+                            </button>
+                            <button id="download-backup" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Descargar respaldo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Restore Modal -->
+        <div id="restore-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">Restaurar datos</h3>
+                        <button id="close-restore-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <p class="text-gray-600">Selecciona un archivo de respaldo para restaurar tus datos. Todos los datos actuales serán reemplazados.</p>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Archivo de respaldo</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="restore-file" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                            <span>Seleccionar archivo</span>
+                                            <input id="restore-file" name="restore-file" type="file" class="sr-only">
+                                        </label>
+                                        <p class="pl-1">o arrastrar y soltar</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Archivo .securevault hasta 10MB</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="restore-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña del respaldo</label>
+                            <input type="password" id="restore-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa la contraseña del respaldo">
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" id="cancel-restore" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Cancelar
+                            </button>
+                            <button id="confirm-restore" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Restaurar datos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Confirmation Modal -->
+        <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <h3 class="mt-2 text-lg font-medium text-gray-900" id="confirmation-title">¿Estás seguro?</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500" id="confirmation-message">Esta acción no se puede deshacer.</p>
+                        </div>
+                    </div>
+                    <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                        <button type="button" id="confirm-action" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:col-start-2 sm:text-sm">
+                            Confirmar
+                        </button>
+                        <button type="button" id="cancel-action" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Toast -->
+        <div id="notification-toast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg transform translate-y-10 opacity-0 transition-all duration-300 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            <span id="notification-message">Operación realizada con éxito</span>
+        </div>
+    </div>
+
+    <script>
+        // App State
+        const state = {
+            currentUser: null,
+            items: [],
+            currentItem: null,
+            actionToConfirm: null,
+            actionData: null,
+            inactivityTimer: null,
+            inactivityTimeout: 30 * 60 * 1000, // 30 minutes
+            masterKey: null
+        };
+        
+        // DOM Elements
+        const elements = {
+            // Auth Views
+            registerView: document.getElementById('register-view'),
+            loginView: document.getElementById('login-view'),
+            showLogin: document.getElementById('show-login'),
+            showRegister: document.getElementById('show-register'),
+            registerForm: document.getElementById('register-form'),
+            loginForm: document.getElementById('login-form'),
+            enableMFA: document.getElementById('enable-mfa'),
+            mfaSection: document.getElementById('mfa-section'),
+            mfaLoginSection: document.getElementById('mfa-login-section'),
+            passwordStrength: document.getElementById('password-strength'),
+            
+            // App View
+            appView: document.getElementById('app-view'),
+            logoutBtn: document.getElementById('logout-btn'),
+            categoryBtns: document.querySelectorAll('.category-btn'),
+            addItemBtn: document.getElementById('add-item-btn'),
+            addFirstItemBtn: document.getElementById('add-first-item-btn'),
+            generatePasswordBtn: document.getElementById('generate-password-btn'),
+            backupBtn: document.getElementById('backup-btn'),
+            restoreBtn: document.getElementById('restore-btn'),
+            searchInput: document.getElementById('search-input'),
+            itemsGrid: document.getElementById('items-grid'),
+            emptyState: document.getElementById('empty-state'),
+            
+            // Modals
+            addItemModal: document.getElementById('add-item-modal'),
+            closeAddItemModal: document.getElementById('close-add-item-modal'),
+            cancelAddItem: document.getElementById('cancel-add-item'),
+            addItemForm: document.getElementById('add-item-form'),
+            itemType: document.getElementById('item-type'),
+            itemName: document.getElementById('item-name'),
+            itemCategory: document.getElementById('item-category'),
+            
+            // Item Type Fields
+            emailFields: document.getElementById('email-fields'),
+            walletFields: document.getElementById('wallet-fields'),
+            platformFields: document.getElementById('platform-fields'),
+            cardFields: document.getElementById('card-fields'),
+            noteFields: document.getElementById('note-fields'),
+            photoFields: document.getElementById('photo-fields'),
+            
+            viewItemModal: document.getElementById('view-item-modal'),
+            closeViewItemModal: document.getElementById('close-view-item-modal'),
+            viewItemTitle: document.getElementById('view-item-title'),
+            viewItemContent: document.getElementById('view-item-content'),
+            editItemBtn: document.getElementById('edit-item-btn'),
+            deleteItemBtn: document.getElementById('delete-item-btn'),
+            
+            generatePasswordModal: document.getElementById('generate-password-modal'),
+            closeGeneratePasswordModal: document.getElementById('close-generate-password-modal'),
+            passwordLength: document.getElementById('password-length'),
+            passwordLengthValue: document.getElementById('password-length-value'),
+            includeUppercase: document.getElementById('include-uppercase'),
+            includeLowercase: document.getElementById('include-lowercase'),
+            includeNumbers: document.getElementById('include-numbers'),
+            includeSymbols: document.getElementById('include-symbols'),
+            generatedPassword: document.getElementById('generated-password'),
+            copyPassword: document.getElementById('copy-password'),
+            generateNewPassword: document.getElementById('generate-new-password'),
+            
+            backupModal: document.getElementById('backup-modal'),
+            closeBackupModal: document.getElementById('close-backup-modal'),
+            backupPassword: document.getElementById('backup-password'),
+            confirmBackupPassword: document.getElementById('confirm-backup-password'),
+            cancelBackup: document.getElementById('cancel-backup'),
+            downloadBackup: document.getElementById('download-backup'),
+            
+            restoreModal: document.getElementById('restore-modal'),
+            closeRestoreModal: document.getElementById('close-restore-modal'),
+            restoreFile: document.getElementById('restore-file'),
+            restorePassword: document.getElementById('restore-password'),
+            cancelRestore: document.getElementById('cancel-restore'),
+            confirmRestore: document.getElementById('confirm-restore'),
+            
+            confirmationModal: document.getElementById('confirmation-modal'),
+            confirmationTitle: document.getElementById('confirmation-title'),
+            confirmationMessage: document.getElementById('confirmation-message'),
+            confirmAction: document.getElementById('confirm-action'),
+            cancelAction: document.getElementById('cancel-action'),
+            
+            notificationToast: document.getElementById('notification-toast'),
+            notificationMessage: document.getElementById('notification-message')
+        };
+        
+        // Initialize the app
+        function init() {
+            // Check if user is already logged in
+            const userData = localStorage.getItem('secureVaultUser');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    if (user && user.email) {
+                        showLogin();
+                    }
+                } catch (e) {
+                    localStorage.removeItem('secureVaultUser');
+                }
+            }
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Generate a password on page load for demo purposes
+            generatePassword();
+        }
+        
+        // Set up all event listeners
+        function setupEventListeners() {
+            // Auth events
+            elements.showLogin.addEventListener('click', showLogin);
+            elements.showRegister.addEventListener('click', showRegister);
+            elements.registerForm.addEventListener('submit', handleRegister);
+            elements.loginForm.addEventListener('submit', handleLogin);
+            elements.enableMFA.addEventListener('change', toggleMFASection);
+            elements.registerPassword.addEventListener('input', updatePasswordStrength);
+            
+            // App events
+            elements.logoutBtn.addEventListener('click', handleLogout);
+            elements.categoryBtns.forEach(btn => {
+                btn.addEventListener('click', () => filterItemsByCategory(btn.dataset.category));
+            });
+            elements.addItemBtn.addEventListener('click', showAddItemModal);
+            elements.addFirstItemBtn.addEventListener('click', showAddItemModal);
+            elements.generatePasswordBtn.addEventListener('click', showGeneratePasswordModal);
+            elements.backupBtn.addEventListener('click', showBackupModal);
+            elements.restoreBtn.addEventListener('click', showRestoreModal);
+            elements.searchInput.addEventListener('input', handleSearch);
+            
+            // Add item modal events
+            elements.closeAddItemModal.addEventListener('click', hideAddItemModal);
+            elements.cancelAddItem.addEventListener('click', hideAddItemModal);
+            elements.itemType.addEventListener('change', updateItemFields);
+            elements.addItemForm.addEventListener('submit', saveItem);
+            
+            // View item modal events
+            elements.closeViewItemModal.addEventListener('click', hideViewItemModal);
+            elements.editItemBtn.addEventListener('click', editItem);
+            elements.deleteItemBtn.addEventListener('click', confirmDeleteItem);
+            
+            // Generate password modal events
+            elements.closeGeneratePasswordModal.addEventListener('click', hideGeneratePasswordModal);
+            elements.passwordLength.addEventListener('input', () => {
+                elements.passwordLengthValue.textContent = elements.passwordLength.value;
+                generatePassword();
+            });
+            elements.includeUppercase.addEventListener('change', generatePassword);
+            elements.includeLowercase.addEventListener('change', generatePassword);
+            elements.includeNumbers.addEventListener('change', generatePassword);
+            elements.includeSymbols.addEventListener('change', generatePassword);
+            elements.copyPassword.addEventListener('click', copyGeneratedPassword);
+            elements.generateNewPassword.addEventListener('click', generatePassword);
+            
+            // Backup modal events
+            elements.closeBackupModal.addEventListener('click', hideBackupModal);
+            elements.cancelBackup.addEventListener('click', hideBackupModal);
+            elements.downloadBackup.addEventListener('click', createBackup);
+            
+            // Restore modal events
+            elements.closeRestoreModal.addEventListener('click', hideRestoreModal);
+            elements.cancelRestore.addEventListener('click', hideRestoreModal);
+            elements.confirmRestore.addEventListener('click', restoreBackup);
+            
+            // Confirmation modal events
+            elements.cancelAction.addEventListener('click', hideConfirmationModal);
+            elements.confirmAction.addEventListener('click', executeConfirmedAction);
+            
+            // Password toggle buttons
+            document.querySelectorAll('.toggle-password').forEach(btn => {
+                btn.addEventListener('click', togglePasswordVisibility);
+            });
+            
+            // Card number formatting
+            elements.cardNumber.addEventListener('input', formatCardNumber);
+            elements.cardExpiry.addEventListener('input', formatCardExpiry);
+            
+            // Photo upload preview
+            elements.photoUpload.addEventListener('change', handlePhotoUpload);
+            
+            // Inactivity timer
+            document.addEventListener('mousemove', resetInactivityTimer);
+            document.addEventListener('keypress', resetInactivityTimer);
+            document.addEventListener('scroll', resetInactivityTimer);
+            document.addEventListener('click', resetInactivityTimer);
+        }
+        
+        // Auth functions
+        function showLogin() {
+            elements.registerView.classList.add('hidden');
+            elements.loginView.classList.remove('hidden');
+        }
+        
+        function showRegister() {
+            elements.loginView.classList.add('hidden');
+            elements.registerView.classList.remove('hidden');
+        }
+        
+        function toggleMFASection() {
+            elements.mfaSection.classList.toggle('hidden', !elements.enableMFA.checked);
+            if (elements.enableMFA.checked) {
+                // In a real app, we would generate a QR code for MFA setup
+                elements.mfaQrCode.innerHTML = '<div class="text-center p-4 text-gray-500">QR code would appear here in a real app</div>';
+            }
+        }
+        
+        function updatePasswordStrength() {
+            const password = elements.registerPassword.value;
+            let strength = 0;
+            
+            // Length check
+            if (password.length >= 10) strength += 25;
+            if (password.length >= 16) strength += 15;
+            
+            // Character type checks
+            if (/[A-Z]/.test(password)) strength += 15;
+            if (/[a-z]/.test(password)) strength += 15;
+            if (/[0-9]/.test(password)) strength += 15;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 15;
+            
+            // Update the strength bar
+            elements.passwordStrength.style.width = `${Math.min(strength, 100)}%`;
+            
+            // Update the color
+            if (strength < 50) {
+                elements.passwordStrength.style.backgroundColor = '#ef4444'; // red
+            } else if (strength < 75) {
+                elements.passwordStrength.style.backgroundColor = '#f59e0b'; // amber
+            } else {
+                elements.passwordStrength.style.backgroundColor = '#10b981'; // emerald
+            }
+        }
+        
+        function handleRegister(e) {
+            e.preventDefault();
+            
+            const email = elements.registerEmail.value;
+            const password = elements.registerPassword.value;
+            const confirmPassword = elements.registerConfirmPassword.value;
+            
+            // Basic validation
+            if (password !== confirmPassword) {
+                showNotification('Las contraseñas no coinciden', 'error');
+                return;
+            }
+            
+            if (password.length < 10) {
+                showNotification('La contraseña debe tener al menos 10 caracteres', 'error');
+                return;
+            }
+            
+            // In a real app, we would hash the password and save the user
+            const user = {
+                email,
+                password: CryptoJS.SHA256(password).toString(), // Just for demo, in real app use proper hashing
+                mfaEnabled: elements.enableMFA.checked,
+                mfaSecret: elements.enableMFA.checked ? 'demo-secret' : null
+            };
+            
+            // Save user to localStorage (in a real app, this would be a server call)
+            localStorage.setItem('secureVaultUser', JSON.stringify(user));
+            
+           
+</html>
